@@ -48,6 +48,7 @@ public class KonfigMod : BaseSpaceWarpPlugin
     private static string LocationFile = Assembly.GetExecutingAssembly().Location;
     private static string LocationDirectory = Path.GetDirectoryName(LocationFile);
 
+    public bool patchRan = false;
     public Dictionary<string, List<PatchListData>> PatchList = new Dictionary<string, List<PatchListData>>();
 
     private Logger logger = new Logger(ModName, ModVersion);
@@ -72,7 +73,11 @@ public class KonfigMod : BaseSpaceWarpPlugin
     void GameStateChanged(MessageCenterMessage messageCenterMessage)
     {
         GameStateChangedMessage gameStateChangedMessage = messageCenterMessage as GameStateChangedMessage;
-        RunPatchers();
+        if(gameStateChangedMessage.CurrentState == GameState.Loading && patchRan == false) {
+            RunPatchers();
+            patchRan = true;
+        }
+        
 
     }
     void RunPatchers()
@@ -84,17 +89,12 @@ public class KonfigMod : BaseSpaceWarpPlugin
                 PartCore SelectedPartToPatch = GameManager.Instance.Game.Parts.Get(partPatches);
                 foreach(PatchListData PatchType in PatchList[partPatches])
                 {
-
-                    var partModule = SelectedPartToPatch.data.serializedPartModules.Find(partModule => partModule.Name == PatchType.ModuleName);
+                    var partModule = SelectedPartToPatch.data.serializedPartModules.Find(partModule => partModule.Name == $"PartComponent{PatchType.ModuleName}");
                     var partData = partModule.ModuleData.Find(partData => partData.Name == PatchType.DataName);
                     object obj = Activator.CreateInstance(PatchType.PatchType);
                     var m = PatchType.PatchType.GetMethod("Patch");
-                    m.Invoke(obj, new object[] { partModule, partData , partPatches , SelectedPartToPatch.data , SelectedPartToPatch });
+                    m.Invoke(obj, new object[] { null, partData.DataObject , partPatches , SelectedPartToPatch.data , SelectedPartToPatch });
                 }
-            }
-            foreach (PartCore x in GameManager.Instance.Game.Parts.AllParts())
-            {
-                logger.Debug(JsonConvert.SerializeObject(x.data));
             }
         }
         catch (Exception e)
@@ -177,6 +177,7 @@ public class patch_{{targetStr}}_{{dir.Split('\\')[dir.Split('\\').Length - 1]}}
                         SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText($$"""
 using KSP.Game;
 using KSP.Modules;
+using KSP.Sim.Definitions;
 using Konfig;
 using Logger = ShadowUtilityLIB.logging.Logger;
 
@@ -188,7 +189,7 @@ public class patch_{{targetStr}}_{{dir.Split('\\')[dir.Split('\\').Length - 1]}}
     {
 
     }
-    public override void Patch({{moduleStr}} Module, {{dataStr}} Data, String partName,PartData partData, PartCore Target){
+    public override void Patch({{moduleStr}} Module, {{dataStr}} Data, string  partName,PartData partData, PartCore Target){
         {{patch}}
     }
 }
