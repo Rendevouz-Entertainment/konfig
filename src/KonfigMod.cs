@@ -10,13 +10,31 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
 using System.Reflection;
+using UnityEngine;
+using Newtonsoft.Json;
+using KSP.Game;
+using KSP.Sim.Definitions;
+using KSP.Messages;
+using KSP.UI.Binding;
 
 namespace Konfig;
-public abstract class PatchModule
+public abstract class PatchModule<M,D>
 {
-    public abstract void Patch(dynamic Module, dynamic Data, Logger logger);
+    
+    public abstract void Patch(M Module, D Data, string partName,PartData partData, PartCore Target);
 }
-
+public class PatchListData
+{
+    public string ModuleName { get; set; }
+    public string DataName { get; set; }
+    public Type PatchType { get; set; }
+    public PatchListData(string mn,string dn,Type pt)
+    {
+        ModuleName = mn;
+        DataName = dn;
+        PatchType = pt;
+    }
+}
 [BepInPlugin("com.shadow.konfig", "Konfig", "0.0.1")]
 [BepInDependency(ShadowUtilityLIBMod.ModId, ShadowUtilityLIBMod.ModVersion)]
 [BepInDependency(SpaceWarpPlugin.ModGuid, SpaceWarpPlugin.ModVer)]
@@ -30,7 +48,7 @@ public class KonfigMod : BaseSpaceWarpPlugin
     private static string LocationFile = Assembly.GetExecutingAssembly().Location;
     private static string LocationDirectory = Path.GetDirectoryName(LocationFile);
 
-    public Dictionary<string,Type> PatchList = new Dictionary<string, Type>();
+    public Dictionary<string, List<PatchListData>> PatchList = new Dictionary<string, List<PatchListData>>();
 
     private Logger logger = new Logger(ModName, ModVersion);
     public static Manager manager;
@@ -39,7 +57,9 @@ public class KonfigMod : BaseSpaceWarpPlugin
     public override void OnInitialized()
     {
         GetConfigs();
+        GameManager.Instance.Game.Messages.Subscribe<GameStateChangedMessage>(GameStateChanged);
         logger.Log("Initialized");
+        
     }
     void Awake()
     {
@@ -49,12 +69,65 @@ public class KonfigMod : BaseSpaceWarpPlugin
         }
         
     }
+    void GameStateChanged(MessageCenterMessage messageCenterMessage)
+    {
+        GameStateChangedMessage gameStateChangedMessage = messageCenterMessage as GameStateChangedMessage;
+        RunPatchers();
+
+    }
+    void RunPatchers()
+    {
+        try
+        {
+            foreach(string partPatches in PatchList.Keys)
+            {
+                PartCore SelectedPartToPatch = GameManager.Instance.Game.Parts.Get(partPatches);
+                foreach(PatchListData PatchType in PatchList[partPatches])
+                {
+
+                    var partModule = SelectedPartToPatch.data.serializedPartModules.Find(partModule => partModule.Name == PatchType.ModuleName);
+                    var partData = partModule.ModuleData.Find(partData => partData.Name == PatchType.DataName);
+                    object obj = Activator.CreateInstance(PatchType.PatchType);
+                    var m = PatchType.PatchType.GetMethod("Patch");
+                    m.Invoke(obj, new object[] { partModule, partData , partPatches , SelectedPartToPatch.data , SelectedPartToPatch });
+                }
+            }
+            foreach (PartCore x in GameManager.Instance.Game.Parts.AllParts())
+            {
+                logger.Debug(JsonConvert.SerializeObject(x.data));
+            }
+        }
+        catch (Exception e)
+        {
+            logger.Error($"{e.Message}\n{e.InnerException}\n{e.Source}\n{e.Data}\n{e.HelpLink}\n{e.HResult}\n{e.StackTrace}\n{e.TargetSite}");
+        }
+    }
     void GetConfigs()
     {
         Regex regex = new Regex(@"^\[Target[(]\w+[)]]\n^\[Module[(]\w+[)]]\n^\[Data[(]\w+[)]]\n",RegexOptions.Multiline);
         
         try
         {
+            List<MetadataReference> references = new List<MetadataReference>();
+            foreach (var assembalyData in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                try
+                {
+                    if(assembalyData.Location == null || assembalyData.Location == "" || assembalyData.Location == " ")
+                    {
+
+                    }
+                    else
+                    {
+                        references.Add(MetadataReference.CreateFromFile(assembalyData.Location));
+                    }
+                }
+                catch (Exception e)
+                {
+                    logger.Error($"{e.Message}\n{e.InnerException}\n{e.Source}\n{e.Data}\n{e.HelpLink}\n{e.HResult}\n{e.StackTrace}\n{e.TargetSite}");
+                }
+                
+            }
             logger.Log("Getting patches");
             foreach (string dir in Directory.EnumerateDirectories(Path.GetFullPath($@"{LocationDirectory}\..\")))
             {
@@ -67,31 +140,62 @@ public class KonfigMod : BaseSpaceWarpPlugin
                     string[] Patches = regex.Split(PatchData);
                     MatchCollection Patches_Headers = regex.Matches(PatchData);
                     logger.Debug(PatchData);
+                    Patches = Patches.Where(w => w != "").ToArray();
                     foreach (var patch in Patches)
                     {
                         var patchHeader = Patches_Headers[patchID].Value;
-                        var targetStr = Regex.Match(patchHeader, @"\[Target[(](.*?)[)]\]").Value;
-                        var moduleStr = Regex.Match(patchHeader, @"\[Module[(](.*?)[)]\]").Value;
-                        var dataStr = Regex.Match(patchHeader, @"\[Data[(](.*?)[)]\]").Value;
-
+                        var targetStr = Regex.Match(patchHeader, @"[(](.*?)[)]", RegexOptions.Multiline).Groups[0].Value;
+                        var moduleStr = Regex.Match(patchHeader, @"[(](.*?)[)]", RegexOptions.Multiline).NextMatch().Groups[0].Value;
+                        var dataStr = Regex.Match(patchHeader, @"[(](.*?)[)]", RegexOptions.Multiline).NextMatch().NextMatch().Groups[0].Value;
+                        targetStr = targetStr.Replace("(", "");
+                        targetStr = targetStr.Replace(")", "");
+                        moduleStr = moduleStr.Replace("(", "");
+                        moduleStr = moduleStr.Replace(")", "");
+                        dataStr = dataStr.Replace("(", "");
+                        dataStr = dataStr.Replace(")", "");
                         logger.Debug(patch);
 
-                        
-                        SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(@$"
+                        logger.Debug($$"""
 using KSP.Game;
+using KSP.Modules;
 using Konfig;
 using Logger = ShadowUtilityLIB.logging.Logger;
 
 namespace KPatcher;
 
-public static class patch_{targetStr}_{dir.Split('\\')[dir.Split('\\').Length - 1]} : PatchModule {{
-    public static override Patch({moduleStr} Module, {dataStr} Data, Logger logger){{
-        {patch}
-    }}
-}}
-");
-                        CSharpCompilation compilation = CSharpCompilation.Create($"Patch_{targetStr}_{dir.Split('\\')[dir.Split('\\').Length - 1]}_PatchModule", new [] {syntaxTree});
+public class patch_{{targetStr}}_{{dir.Split('\\')[dir.Split('\\').Length - 1]}} : PatchModule<{{moduleStr}},{{dataStr}}> {
+    private Logger logger = new Logger("Konfig Patch", "0.0.1");
+    static void Main()
+    {
+
+    }
+    public override void Patch({{moduleStr}} Module, {{dataStr}} Data, String partName,PartData partData, PartCore Target){
+        {{patch}}
+    }
+}
+""");
+                        SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText($$"""
+using KSP.Game;
+using KSP.Modules;
+using Konfig;
+using Logger = ShadowUtilityLIB.logging.Logger;
+
+namespace KPatcher;
+
+public class patch_{{targetStr}}_{{dir.Split('\\')[dir.Split('\\').Length - 1]}} : PatchModule<{{moduleStr}},{{dataStr}}> {
+    private Logger logger = new Logger("Konfig Patch", "0.0.1");
+    static void Main()
+    {
+
+    }
+    public override void Patch({{moduleStr}} Module, {{dataStr}} Data, String partName,PartData partData, PartCore Target){
+        {{patch}}
+    }
+}
+""");
                         
+
+                        CSharpCompilation compilation = CSharpCompilation.Create($"Patch_{targetStr}_{dir.Split('\\')[dir.Split('\\').Length - 1]}_PatchModule", new [] {syntaxTree}, references);
                         using (var ms = new MemoryStream())
                         {
                             EmitResult result = compilation.Emit(ms);
@@ -108,16 +212,20 @@ public static class patch_{targetStr}_{dir.Split('\\')[dir.Split('\\').Length - 
                             }
                             ms.Seek(0, SeekOrigin.Begin);
                             Assembly assembly = Assembly.Load(ms.ToArray());
-                            Type type = assembly.GetType();
-                            object obj = Activator.CreateInstance(type);
+                            Type type = assembly.GetType($"KPatcher.patch_{targetStr}_{dir.Split('\\')[dir.Split('\\').Length - 1]}");
                             
-                            type.InvokeMember("Patch", BindingFlags.InvokeMethod,
-                                null,
-                                obj,
-                                new object[] { new Module_Engine(), new Data_Engine() , logger });
                             //var x = GameManager.Instance.Game.Parts.Get("");
                             //x.data
-                            PatchList.Add($"patch_{targetStr}_{dir.Split('\\')[dir.Split('\\').Length - 1]}", type);
+                            if (PatchList.ContainsKey(targetStr))
+                            {
+                                PatchList[targetStr].Add(new PatchListData(moduleStr, dataStr,type));
+                            }
+                            else
+                            {
+                                PatchList.Add(targetStr, new List<PatchListData>());
+                                PatchList[targetStr].Add(new PatchListData(moduleStr, dataStr, type));
+                            }
+                            
                         }
 
 
