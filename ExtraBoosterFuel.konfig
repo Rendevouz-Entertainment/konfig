@@ -1,0 +1,5 @@
+[Target(booster_1v_solid_hammer)]
+[Module(Module_Engine)]
+[Data(Data_Engine)]
+partData.resourceContainers[0].capacityUnits *= 5;
+partData.resourceContainers[0].initialUnits *= 5;
