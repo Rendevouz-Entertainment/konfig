@@ -11,23 +11,24 @@
 	  </RestoreAdditionalProjectSources>
   </PropertyGroup>
   <ItemGroup>
-	  <Reference Include="Assembly-CSharp">
+	  <Reference Include="Assembly-CSharp" publicize="true">
 		  <HintPath>..\external_dlls\Assembly-CSharp.dll</HintPath>
 	  </Reference>
-	  <Reference Include="Assembly-CSharp-firstpass">
+	  <Reference Include="Assembly-CSharp-firstpass" publicize="true">
 		  <HintPath>..\external_dlls\Assembly-CSharp-firstpass.dll</HintPath>
-	  </Reference>
-	  <Reference Include="ShadowUtilityLIB">
+	  </Reference >
+		  <Reference Include="Microsoft.CSharp" publicize="true"/>
+	  <Reference Include="ShadowUtilityLIB" publicize="true">
 		  <HintPath>..\external_dlls\ShadowUtilityLIB.dll</HintPath>
 	  </Reference>
-	  <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
-	  <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.0" PrivateAssets="all" />
-	  <PackageReference Include="BepInEx.Core" Version="5.*" />
-	  <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
-	  <PackageReference Include="HarmonyX" Version="2.10.1" />
-	  <PackageReference Include="SpaceWarp" Version="1.*" />
-	  <PackageReference Include="UnityEngine.Modules" Version="2020.3.33" />
-	  <PackageReference Include="UnityEngine.UITK" Version="2020.3.33" />
-	  <PackageReference Include="UitkForKsp2" Version="*" />
+	  <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" publicize="true"/>
+	  <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.0" PrivateAssets="all" publicize="true"/>
+	  <PackageReference Include="BepInEx.Core" Version="5.*" publicize="true"/>
+	  <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" publicize="true"/>
+	  <PackageReference Include="HarmonyX" Version="2.10.1" publicize="true"/>
+	  <PackageReference Include="SpaceWarp" Version="1.*" publicize="true"/>
+	  <PackageReference Include="UnityEngine.Modules" Version="2020.3.33" publicize="true"/>
+	  <PackageReference Include="UnityEngine.UITK" Version="2020.3.33" publicize="true"/>
+	  <PackageReference Include="UitkForKsp2" Version="*" publicize="true"/>
   </ItemGroup>
 </Project>
