@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>true</ImplicitUsings>
@@ -15,20 +15,33 @@
 		  <HintPath>..\external_dlls\Assembly-CSharp.dll</HintPath>
 	  </Reference>
 	  <Reference Include="Assembly-CSharp-firstpass" publicize="true">
-		  <HintPath>..\external_dlls\Assembly-CSharp-firstpass.dll</HintPath>
-	  </Reference >
-		  <Reference Include="Microsoft.CSharp" publicize="true"/>
-	  <Reference Include="ShadowUtilityLIB" publicize="true">
-		  <HintPath>..\external_dlls\ShadowUtilityLIB.dll</HintPath>
+		  <HintPath>..\external_dlls\Assembly-CSharp-firstpass.dll</HintPath>	  </Reference>
+	  <Reference Include="Microsoft.CodeAnalysis">
+	    <HintPath>..\external_dlls\Microsoft.CodeAnalysis.dll</HintPath>
 	  </Reference>
-	  <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" publicize="true"/>
-	  <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.0" PrivateAssets="all" publicize="true"/>
-	  <PackageReference Include="BepInEx.Core" Version="5.*" publicize="true"/>
-	  <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" publicize="true"/>
-	  <PackageReference Include="HarmonyX" Version="2.10.1" publicize="true"/>
-	  <PackageReference Include="SpaceWarp" Version="1.*" publicize="true"/>
-	  <PackageReference Include="UnityEngine.Modules" Version="2020.3.33" publicize="true"/>
-	  <PackageReference Include="UnityEngine.UITK" Version="2020.3.33" publicize="true"/>
-	  <PackageReference Include="UitkForKsp2" Version="*" publicize="true"/>
+	  <Reference Include="Microsoft.CodeAnalysis.CSharp">
+	    <HintPath>..\external_dlls\Microsoft.CodeAnalysis.CSharp.dll</HintPath>
+	  </Reference>
+	  <Reference Include="Microsoft.CSharp">
+	    <HintPath>..\external_dlls\Microsoft.CSharp.dll</HintPath>
+	  </Reference>
+	  <Reference Include="Newtonsoft.Json">
+	    <HintPath>..\external_dlls\Newtonsoft.Json.dll</HintPath>
+	  </Reference>
+	  <Reference Include="ReLIB">
+	    <HintPath>..\external_dlls\ReLIB.dll</HintPath>
+	  </Reference>
+	  <Reference Include="System.Collections.Immutable">
+	    <HintPath>..\external_dlls\System.Collections.Immutable.dll</HintPath>
+	  </Reference>
+	  <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" publicize="true" />
+	  <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.0" PrivateAssets="all" publicize="true" />
+	  <PackageReference Include="BepInEx.Core" Version="5.*" publicize="true" />
+	  <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" publicize="true" />
+	  <PackageReference Include="HarmonyX" Version="2.10.1" publicize="true" />
+	  <PackageReference Include="SpaceWarp" Version="1.*" publicize="true" />
+	  <PackageReference Include="UnityEngine.Modules" Version="2020.3.33" publicize="true" />
+	  <PackageReference Include="UnityEngine.UITK" Version="2020.3.33" publicize="true" />
+	  <PackageReference Include="UitkForKsp2" Version="*" publicize="true" />
   </ItemGroup>
 </Project>

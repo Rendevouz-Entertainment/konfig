@@ -1,9 +1,9 @@
 ﻿using SpaceWarp.API.Mods;
 using SpaceWarp;
 using BepInEx;
-using ShadowUtilityLIB;
-using ShadowUtilityLIB.UI;
-using Logger = ShadowUtilityLIB.logging.Logger;
+using ReLIB;
+using ReLIB.UI;
+using Logger = ReLIB.logging.Logger;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -23,6 +23,7 @@ using HarmonyLib;
 using KSP.FX.LaunchSystems;
 using KSP.Rendering.impl;
 using KSP.Rendering;
+using System.Collections;
 
 namespace Konfig;
 public abstract class PatchModule<M,D>
@@ -205,15 +206,14 @@ public class SkyBoxUtils
     }
 }
 
-[BepInPlugin("com.shadow.konfig", "Konfig", "0.0.1")]
-[BepInDependency(ShadowUtilityLIBMod.ModId, ShadowUtilityLIBMod.ModVersion)]
-[BepInDependency(SpaceWarpPlugin.ModGuid, SpaceWarpPlugin.ModVer)]
+[BepInPlugin("com.rendevouzrs_entertainment.konfig", "Konfig", "0.1.2")]
+[BepInDependency(ReLIBMod.ModId, ReLIBMod.ModVersion)]
 
-public class KonfigMod : BaseSpaceWarpPlugin
+public class KonfigMod : BaseUnityPlugin
 {
-    public static string ModId = "com.shadow.Konfig";
+    public static string ModId = "com.rendevouzrs_entertainment.Konfig";
     public static string ModName = "Konfig";
-    public static string ModVersion = "0.0.1";
+    public static string ModVersion = "0.1.2";
 
     private static string LocationFile = Assembly.GetExecutingAssembly().Location;
     private static string LocationDirectory = Path.GetDirectoryName(LocationFile);
@@ -224,23 +224,45 @@ public class KonfigMod : BaseSpaceWarpPlugin
     private Logger logger = new Logger(ModName, ModVersion);
     public static Manager manager;
 
-    
+
+
 
     public static bool IsDev = false;
-    public override void OnInitialized()
+    public IEnumerator Init()
     {
+        yield return new WaitForSeconds(10);
+        bool notInitilised = true;
+        while (notInitilised)
+        {
+            try
+            {
+                GameManager.Instance.Game.Messages.Subscribe<GameStateChangedMessage>(GameStateChanged);
+                notInitilised = false;
+                GetConfigs();
+                Harmony.CreateAndPatchAll(typeof(KonfigHpatch));
+                logger.Log("Initialized");
+            }
+            catch (Exception e)
+            {
+
+            }
+            yield return new WaitForSeconds(1);
+        }
         
-        GetConfigs();
-        Harmony.CreateAndPatchAll(typeof(KonfigHpatch));
-        GameManager.Instance.Game.Messages.Subscribe<GameStateChangedMessage>(GameStateChanged);
-        logger.Log("Initialized");
     }
     void Awake()
     {
+
         if (IsDev)
         {
-            ShadowUtilityLIBMod.EnableDebugMode();
+            ReLIBMod.EnableDebugMode();
         }
+       
+        
+    }
+    void Start()
+    {
+        ReLIBMod.RunCr(Init());
     }
     void GameStateChanged(MessageCenterMessage messageCenterMessage)
     {
@@ -378,9 +400,10 @@ public class KonfigMod : BaseSpaceWarpPlugin
             {
                 try
                 {
-                    if(assembalyData.Location == null || assembalyData.Location == "" || assembalyData.Location == " ")
+                    logger.Debug($"{assembalyData.Location} {assembalyData.FullName}");
+                    if (assembalyData.Location == null || assembalyData.Location == "" || assembalyData.Location == " ")
                     {
-
+                        
                     }
                     else
                     {
@@ -393,6 +416,20 @@ public class KonfigMod : BaseSpaceWarpPlugin
                 }
                 
             }
+            references.Add(MetadataReference.CreateFromFile("./KSP2_x64_Data/Managed/Assembly-CSharp.dll"));
+            try
+            {
+                references.ForEach(x =>
+                {
+                    logger.Debug($"{x.Display}");
+
+                });
+            }
+            catch (Exception e)
+            {
+                logger.Error($"{e.Message}\n{e.InnerException}\n{e.Source}\n{e.Data}\n{e.HelpLink}\n{e.HResult}\n{e.StackTrace}\n{e.TargetSite}");
+            }
+            
             logger.Log("Getting patches");
             foreach (string dir in Directory.EnumerateDirectories(Path.GetFullPath($@"{LocationDirectory}\..\")))
             {
@@ -444,9 +481,9 @@ using Konfig;
 using SpaceWarp.API.Mods;
 using SpaceWarp;
 using BepInEx;
-using ShadowUtilityLIB;
-using ShadowUtilityLIB.UI;
-using Logger = ShadowUtilityLIB.logging.Logger;
+using ReLIB;
+using ReLIB.UI;
+using Logger = ReLIB.logging.Logger;
 using System.Text.RegularExpressions;
 using UnityEngine;
 using Newtonsoft.Json;
@@ -462,7 +499,7 @@ using KSP.Sim.ResourceSystem;
 namespace KPatcher;
 
 public class patch_{{targetStr}}_{{dir.Split('\\')[dir.Split('\\').Length - 1]}}_{{patchID}} : PatchModule<{{moduleStr}},{{dataStr}}> {
-    private Logger logger = new Logger("Konfig Patch", "0.0.1");
+    private Logger logger = new Logger("Konfig Patch", "0.1.2");
     static void Main()
     {
 
@@ -477,9 +514,9 @@ using Konfig;
 using SpaceWarp.API.Mods;
 using SpaceWarp;
 using BepInEx;
-using ShadowUtilityLIB;
-using ShadowUtilityLIB.UI;
-using Logger = ShadowUtilityLIB.logging.Logger;
+using ReLIB;
+using ReLIB.UI;
+using Logger = ReLIB.logging.Logger;
 using System.Text.RegularExpressions;
 using UnityEngine;
 using Newtonsoft.Json;
@@ -495,7 +532,7 @@ using KSP.Sim.ResourceSystem;
 namespace KPatcher;
 
 public class patch_{{targetStr}}_{{dir.Split('\\')[dir.Split('\\').Length - 1]}}_{{patchID}} : PatchModule<{{moduleStr}},{{dataStr}}> {
-    private Logger logger = new Logger("Konfig Patch", "0.0.1");
+    private Logger logger = new Logger("Konfig Patch", "0.1.2");
     static void Main()
     {
 
