@@ -26,12 +26,12 @@ using KSP.Rendering;
 using System.Collections;
 
 namespace Konfig;
-public abstract class PatchModule<M,D>
+public abstract class PatchModule<M, D>
 {
-    
-    public abstract void Patch(ref M Module,ref D Data, string partName, PartData partData, PartCore Target);
 
-    
+    public abstract void Patch(ref M Module, ref D Data, string partName, PartData partData, PartCore Target);
+
+
 }
 public class PatchListData
 {
@@ -40,7 +40,7 @@ public class PatchListData
     public Type PatchType { get; set; }
     public dynamic originalData { get; set; } = null;
     public string FileLocation { get; set; }
-    public PatchListData(string mn,string dn,Type pt,string fileLocation)
+    public PatchListData(string mn, string dn, Type pt, string fileLocation)
     {
         ModuleName = mn;
         DataName = dn;
@@ -119,7 +119,7 @@ public static class KonfigHpatch
     [HarmonyPatch(typeof(ProceduralCubemap))]
     [HarmonyPatch("CreateCubeMap")]
     [HarmonyPrefix]
-    public static bool ProceduralCubemap_CreateCubeMap(ProceduralCubemap __instance,ref Cubemap __result)
+    public static bool ProceduralCubemap_CreateCubeMap(ProceduralCubemap __instance, ref Cubemap __result)
     {
         if (CustomSkybox)
         {
@@ -172,11 +172,11 @@ public class SkyBoxUtils
     public int size { get; set; }
     public void Create()
     {
-        CreateSkybox(TargetFile,size);
+        CreateSkybox(TargetFile, size);
     }
-    public void CreateSkybox(string TexName,int Tsize)
+    public void CreateSkybox(string TexName, int Tsize)
     {
-        Cubemap cubemap = new Cubemap(Tsize, TextureFormat.RGB24,1);
+        Cubemap cubemap = new Cubemap(Tsize, TextureFormat.RGB24, 1);
         Texture2D tXP = new Texture2D(Tsize, Tsize);
         Texture2D tXN = new Texture2D(Tsize, Tsize);
         Texture2D tYP = new Texture2D(Tsize, Tsize);
@@ -189,8 +189,9 @@ public class SkyBoxUtils
         tYN.LoadImage(File.ReadAllBytes($"{BaseLocation}/{TexName}.yn.png"));
         tZP.LoadImage(File.ReadAllBytes($"{BaseLocation}/{TexName}.zp.png"));
         tZN.LoadImage(File.ReadAllBytes($"{BaseLocation}/{TexName}.zn.png"));
-        
-        void SetCubeMapFace(CubemapFace face, Color[] CubeMapColors) {
+
+        void SetCubeMapFace(CubemapFace face, Color[] CubeMapColors)
+        {
             cubemap.SetPixels(CubeMapColors, face);
         }
         SetCubeMapFace(CubemapFace.PositiveX, tXP.GetPixels());
@@ -248,7 +249,7 @@ public class KonfigMod : BaseUnityPlugin
             }
             yield return new WaitForSeconds(1);
         }
-        
+
     }
     void Awake()
     {
@@ -257,8 +258,8 @@ public class KonfigMod : BaseUnityPlugin
         {
             ReLIBMod.EnableDebugMode();
         }
-       
-        
+
+
     }
     void Start()
     {
@@ -268,7 +269,8 @@ public class KonfigMod : BaseUnityPlugin
     {
         GameStateChangedMessage gameStateChangedMessage = messageCenterMessage as GameStateChangedMessage;
         logger.Debug($"{gameStateChangedMessage.CurrentState}");
-        if(gameStateChangedMessage.CurrentState == GameState.Loading || gameStateChangedMessage.CurrentState == GameState.FlightView) {
+        if (gameStateChangedMessage.CurrentState == GameState.Loading || gameStateChangedMessage.CurrentState == GameState.FlightView)
+        {
             RunPatchers();
             patchRan = true;
         }
@@ -278,11 +280,11 @@ public class KonfigMod : BaseUnityPlugin
     {
         try
         {
-            
+
             foreach (string partPatches in PatchList.Keys)
             {
-                
-                foreach(PatchListData PatchType in PatchList[partPatches])
+
+                foreach (PatchListData PatchType in PatchList[partPatches])
                 {
                     try
                     {//KSP.Rendering.impl.ObserverCubemapView
@@ -292,8 +294,8 @@ public class KonfigMod : BaseUnityPlugin
                             int skyboxSize = 2048;
                             object obj = Activator.CreateInstance(PatchType.PatchType);
                             var m = PatchType.PatchType.GetMethod("Patch");
-                            m.Invoke(obj, new object[] { skyBoxUtils, skyboxSize, partPatches, null ,null  });
-                            
+                            m.Invoke(obj, new object[] { skyBoxUtils, skyboxSize, partPatches, null, null });
+
                         }
                         if (PatchType.ModuleName == "ResourceDefinition")
                         {
@@ -337,7 +339,7 @@ public class KonfigMod : BaseUnityPlugin
                         if (PatchType.ModuleName == "CelestialBodyComponent")
                         {
                             CelestialBodyComponent b = GameManager.Instance.Game.UniverseModel.FindCelestialBodyByName(partPatches);
-                            
+
                             CelestialBodyProperties cb = (CelestialBodyProperties)((CelestialBodyDefinition)b.GetDefinition()).properties;
                             try
                             {
@@ -346,7 +348,7 @@ public class KonfigMod : BaseUnityPlugin
                                     PatchType.OriginalData<CelestialBodyProperties>(cb);
                                 }
                             }
-                            catch(Exception e)
+                            catch (Exception e)
                             {
 
                             }
@@ -389,9 +391,196 @@ public class KonfigMod : BaseUnityPlugin
             logger.Error($"{e.Message}\n{e.InnerException}\n{e.Source}\n{e.Data}\n{e.HelpLink}\n{e.HResult}\n{e.StackTrace}\n{e.TargetSite}");
         }
     }
+
+
+    void BuildPatch(string PatchPath, List<MetadataReference> references, string modules, int patchID)
+    {
+        //Match
+        Regex regex = new Regex(@"^\[Target[(]\w+[)]]\n^\[Module[(]\w+[)]]\n^\[Data[(]\w+[)]]\n", RegexOptions.Multiline);
+
+        string targetStr = "";
+        string moduleStr = "";
+        string dataStr = "";
+        string patchData = "";
+
+
+        string PatchFileData = String.Join("\n", File.ReadAllLines(Path.GetFullPath($@"{PatchPath}")));
+        string[] Patches = regex.Split(PatchFileData);
+        MatchCollection Patches_Headers = regex.Matches(PatchFileData);
+        Patches = Patches.Where(w => w != "").ToArray();
+        foreach (var patchd in Patches)
+        {
+
+            var patchHeader = Patches_Headers[patchID].Value;
+            targetStr = Regex.Match(patchHeader, @"[(](.*?)[)]", RegexOptions.Multiline).Groups[0].Value;
+            moduleStr = Regex.Match(patchHeader, @"[(](.*?)[)]", RegexOptions.Multiline).NextMatch().Groups[0].Value;
+            dataStr = Regex.Match(patchHeader, @"[(](.*?)[)]", RegexOptions.Multiline).NextMatch().NextMatch().Groups[0].Value;
+            targetStr = targetStr.Replace("(", "");
+            targetStr = targetStr.Replace(")", "");
+            moduleStr = moduleStr.Replace("(", "");
+            moduleStr = moduleStr.Replace(")", "");
+            dataStr = dataStr.Replace("(", "");
+            dataStr = dataStr.Replace(")", "");
+            patchData = patchd;
+
+            // Predefined patch types
+            if (moduleStr == "ResourceDefinition")
+            {
+                patchData = $$"""
+{{patchData}}
+GameManager.Instance.Game.ResourceDefinitionDatabase.AddOrUpdateDefinition(Module);
+""";
+            }
+            if (moduleStr == "Skybox")
+            {
+                moduleStr = "SkyBoxUtils";
+                patchData = $$"""
+Module.BaseLocation = @"{{PatchPath}}";
+Module.TargetFile = @"{{targetStr}}";
+{{patchData}}
+Module.size = Data;
+Module.Create();
+""";
+            }
+
+            string Patch = $$"""
+{{modules}}
+
+namespace KPatcher;
+
+public class patch_{{targetStr}}_{{PatchPath.Split('\\')[^1]}}_{{patchID}} : PatchModule<{{moduleStr}},{{dataStr}}> {
+    private Logger logger = new Logger("{{targetStr}} {{moduleStr}} {{dataStr}} {{patchID}} Patch", "");
+    static void Main()
+    {
+
+    }
+    public override void Patch(ref {{moduleStr}} Module, ref {{dataStr}} Data, string  partName,PartData partData, PartCore Target){
+        {{patchData}}
+    }
+}
+""";
+            logger.Debug(Patch);
+            SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(Patch);
+
+            CSharpCompilation compilation = CSharpCompilation.Create($"Patch_{targetStr}_{PatchPath.Split('\\')[^1]}_PatchModule_{patchID}", new[] { syntaxTree }, references);
+            using (var ms = new MemoryStream())
+            {
+                EmitResult result = compilation.Emit(ms);
+                if (!result.Success)
+                {
+                    IEnumerable<Diagnostic> failures = result.Diagnostics.Where(diagnostic =>
+                        diagnostic.IsWarningAsError ||
+                        diagnostic.Severity == DiagnosticSeverity.Error);
+
+                    foreach (Diagnostic diagnostic in failures)
+                    {
+                        logger.Error($"{diagnostic.Id}: {diagnostic.GetMessage()}");
+                    }
+                }
+                ms.Seek(0, SeekOrigin.Begin);
+                Assembly assembly = Assembly.Load(ms.ToArray());
+                Type type = assembly.GetType($"KPatcher.patch_{targetStr}_{PatchPath.Split('\\')[^1]}_{patchID}");
+                if (PatchList.ContainsKey(targetStr))
+                {
+                    PatchList[targetStr].Add(new PatchListData(moduleStr, dataStr, type, PatchPath));
+                }
+                else
+                {
+                    PatchList.Add(targetStr, new List<PatchListData>());
+                    PatchList[targetStr].Add(new PatchListData(moduleStr, dataStr, type, PatchPath));
+                }
+
+            }
+        }
+
+
+
+    }
+
+    void LoadALLPatches()
+    {
+        string modules = """
+            using Konfig;
+            using SpaceWarp.API.Mods;
+            using SpaceWarp;
+            using BepInEx;
+            using ReLIB;
+            using ReLIB.UI;
+            using Logger = ReLIB.logging.Logger;
+            using System.Text.RegularExpressions;
+            using UnityEngine;
+            using Newtonsoft.Json;
+            using KSP.Modules;
+            using KSP.Game;
+            using KSP.Sim.Definitions;
+            using KSP.Messages;
+            using KSP.UI.Binding;
+            using KSP.Sim.impl;
+            using KSP.Sim;
+            using KSP.Sim.ResourceSystem;
+            """;
+
+        int patchID = 0;
+        //Clear previous patches
+        PatchList.Clear();
+
+        //Generate References
+        List<MetadataReference> references = new List<MetadataReference>();
+        foreach (var assembalyData in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            try
+            {
+                logger.Debug($"{assembalyData.Location} {assembalyData.FullName}");
+                if (assembalyData.Location == null || assembalyData.Location == "" || assembalyData.Location == " ")
+                {
+
+                }
+                else
+                {
+                    references.Add(MetadataReference.CreateFromFile(assembalyData.Location));
+                }
+            }
+            catch (Exception e)
+            {
+                logger.Error($"{e.Message}\n{e.InnerException}\n{e.Source}\n{e.Data}\n{e.HelpLink}\n{e.HResult}\n{e.StackTrace}\n{e.TargetSite}");
+            }
+
+        }
+        references.Add(MetadataReference.CreateFromFile("./KSP2_x64_Data/Managed/Assembly-CSharp.dll"));
+        try
+        {
+            references.ForEach(x =>
+            {
+                logger.Debug($"{x.Display}");
+
+            });
+        }
+        catch (Exception e)
+        {
+            logger.Error($"{e.Message}\n{e.InnerException}\n{e.Source}\n{e.Data}\n{e.HelpLink}\n{e.HResult}\n{e.StackTrace}\n{e.TargetSite}");
+        }
+
+
+        //Load Patch data
+        logger.Log("Getting patches");
+        foreach (string dir in Directory.EnumerateDirectories(Path.GetFullPath($@"{LocationDirectory}\..\")))
+        {
+            logger.Log($"Searching {dir}");
+            foreach (string konfigLocation in Directory.EnumerateFiles(Path.GetFullPath($@"{dir}"), "*.konfig"))
+            {
+                logger.Log($"Found patch file {konfigLocation}");
+                BuildPatch(Path.GetFullPath($@"{konfigLocation}"), references, modules, patchID);
+
+
+
+                patchID++;
+            }
+        }
+    }
+    //OLD
     void GetConfigs()
     {
-        Regex regex = new Regex(@"^\[Target[(]\w+[)]]\n^\[Module[(]\w+[)]]\n^\[Data[(]\w+[)]]\n",RegexOptions.Multiline);
+        Regex regex = new Regex(@"^\[Target[(]\w+[)]]\n^\[Module[(]\w+[)]]\n^\[Data[(]\w+[)]]\n", RegexOptions.Multiline);
         PatchList.Clear();
         try
         {
@@ -403,7 +592,7 @@ public class KonfigMod : BaseUnityPlugin
                     logger.Debug($"{assembalyData.Location} {assembalyData.FullName}");
                     if (assembalyData.Location == null || assembalyData.Location == "" || assembalyData.Location == " ")
                     {
-                        
+
                     }
                     else
                     {
@@ -414,7 +603,7 @@ public class KonfigMod : BaseUnityPlugin
                 {
                     logger.Error($"{e.Message}\n{e.InnerException}\n{e.Source}\n{e.Data}\n{e.HelpLink}\n{e.HResult}\n{e.StackTrace}\n{e.TargetSite}");
                 }
-                
+
             }
             references.Add(MetadataReference.CreateFromFile("./KSP2_x64_Data/Managed/Assembly-CSharp.dll"));
             try
@@ -429,7 +618,7 @@ public class KonfigMod : BaseUnityPlugin
             {
                 logger.Error($"{e.Message}\n{e.InnerException}\n{e.Source}\n{e.Data}\n{e.HelpLink}\n{e.HResult}\n{e.StackTrace}\n{e.TargetSite}");
             }
-            
+
             logger.Log("Getting patches");
             foreach (string dir in Directory.EnumerateDirectories(Path.GetFullPath($@"{LocationDirectory}\..\")))
             {
@@ -438,7 +627,7 @@ public class KonfigMod : BaseUnityPlugin
                 {
                     logger.Log($"Found patch file {konfigLoc}");
                     int patchID = 0;
-                    string PatchData =  String.Join("\n" ,File.ReadAllLines(Path.GetFullPath($@"{konfigLoc}")));
+                    string PatchData = String.Join("\n", File.ReadAllLines(Path.GetFullPath($@"{konfigLoc}")));
                     string[] Patches = regex.Split(PatchData);
                     MatchCollection Patches_Headers = regex.Matches(PatchData);
                     logger.Debug(PatchData);
@@ -464,7 +653,7 @@ public class KonfigMod : BaseUnityPlugin
 GameManager.Instance.Game.ResourceDefinitionDatabase.AddOrUpdateDefinition(Module);
 """;
                         }
-                        if(moduleStr == "Skybox")
+                        if (moduleStr == "Skybox")
                         {
                             moduleStr = "SkyBoxUtils";
                             patch = $$"""
@@ -542,9 +731,9 @@ public class patch_{{targetStr}}_{{dir.Split('\\')[dir.Split('\\').Length - 1]}}
     }
 }
 """);
-                        
-                        
-                        CSharpCompilation compilation = CSharpCompilation.Create($"Patch_{targetStr}_{dir.Split('\\')[dir.Split('\\').Length - 1]}_PatchModule_{patchID}", new [] {syntaxTree}, references);
+
+
+                        CSharpCompilation compilation = CSharpCompilation.Create($"Patch_{targetStr}_{dir.Split('\\')[dir.Split('\\').Length - 1]}_PatchModule_{patchID}", new[] { syntaxTree }, references);
                         using (var ms = new MemoryStream())
                         {
                             EmitResult result = compilation.Emit(ms);
@@ -562,19 +751,19 @@ public class patch_{{targetStr}}_{{dir.Split('\\')[dir.Split('\\').Length - 1]}}
                             ms.Seek(0, SeekOrigin.Begin);
                             Assembly assembly = Assembly.Load(ms.ToArray());
                             Type type = assembly.GetType($"KPatcher.patch_{targetStr}_{dir.Split('\\')[dir.Split('\\').Length - 1]}_{patchID}");
-                            
+
                             //var x = GameManager.Instance.Game.Parts.Get("");
                             //x.data
                             if (PatchList.ContainsKey(targetStr))
                             {
-                                PatchList[targetStr].Add(new PatchListData(moduleStr, dataStr,type, dir));
+                                PatchList[targetStr].Add(new PatchListData(moduleStr, dataStr, type, dir));
                             }
                             else
                             {
                                 PatchList.Add(targetStr, new List<PatchListData>());
                                 PatchList[targetStr].Add(new PatchListData(moduleStr, dataStr, type, dir));
                             }
-                            
+
                         }
 
 
